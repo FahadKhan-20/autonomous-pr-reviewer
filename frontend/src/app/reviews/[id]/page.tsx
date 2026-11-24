@@ -9,7 +9,6 @@ import { MetricsBar } from "@/components/metrics-bar";
 import { TestPanel } from "@/components/test-panel";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export default function ReviewDetailPage() {
@@ -31,7 +30,7 @@ export default function ReviewDetailPage() {
   if (isLoading) {
     return (
       <div className="flex h-96 items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <Loader2 className="h-8 w-8 animate-spin text-cyan-400" />
       </div>
     );
   }
@@ -40,9 +39,9 @@ export default function ReviewDetailPage() {
     return (
       <div className="container max-w-7xl px-4 py-8 text-center space-y-4">
         <ShieldAlert className="h-10 w-10 text-muted-foreground mx-auto" />
-        <h2 className="text-lg font-bold">Review not found</h2>
+        <h2 className="text-lg font-bold">Review record not found</h2>
         <Link href="/reviews">
-          <Button variant="outline" size="sm">Back to Reviews</Button>
+          <Button variant="outline" size="sm" className="font-mono text-xs">Back to Reviews</Button>
         </Link>
       </div>
     );
@@ -53,12 +52,12 @@ export default function ReviewDetailPage() {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Link href="/reviews">
-            <Button variant="outline" size="sm" className="h-8 gap-1 text-xs">
+            <Button variant="outline" size="sm" className="h-8 gap-1.5 font-mono text-xs border-white/[0.08] hover:border-cyan-500/40 bg-black/40 text-cyan-300">
               <ArrowLeft className="h-3.5 w-3.5" /> All Reviews
             </Button>
           </Link>
           <div>
-            <h1 className="text-lg font-bold text-foreground">
+            <h1 className="text-lg font-bold text-foreground font-mono">
               {review.repo}#{review.pr_number}
             </h1>
             <p className="text-xs text-muted-foreground">{review.title || review.url}</p>
@@ -76,25 +75,25 @@ export default function ReviewDetailPage() {
       />
 
       {review.summary && (
-        <Card className="border-border/80 bg-card/60">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-semibold flex items-center gap-2">
-              <Sparkles className="h-4 w-4 text-primary" /> Executive Review Summary
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-xs text-foreground/90 leading-relaxed font-sans">{review.summary}</p>
-          </CardContent>
-        </Card>
+        <div className="rounded-xl border border-white/[0.08] bg-card/60 p-4 backdrop-blur-md fui-panel space-y-2">
+          <div className="flex items-center justify-between pb-2 border-b border-white/[0.06]">
+            <div className="flex items-center gap-2">
+              <Sparkles className="h-4 w-4 text-cyan-400" />
+              <h3 className="text-sm font-semibold text-foreground">Executive PR Review Summary</h3>
+            </div>
+            <span className="font-mono text-xs text-cyan-400 uppercase">{review.verdict}</span>
+          </div>
+          <p className="text-xs text-foreground/90 font-sans leading-relaxed">{review.summary}</p>
+        </div>
       )}
 
       <Tabs defaultValue="diff" className="w-full">
-        <TabsList className="w-full justify-start border-b border-border/60 bg-card/40 rounded-t-lg rounded-b-none p-1">
-          <TabsTrigger value="diff" className="flex items-center gap-2 text-xs">
+        <TabsList className="w-full justify-start border-b border-white/[0.08] bg-card/40 rounded-t-xl rounded-b-none p-1 gap-1">
+          <TabsTrigger value="diff" className="flex items-center gap-1.5 text-xs font-mono data-[state=active]:bg-cyan-950/60 data-[state=active]:text-cyan-300 data-[state=active]:border-b-2 data-[state=active]:border-cyan-400">
             <FileDiff className="h-3.5 w-3.5" />
             <span>Annotated Findings ({review.findings?.length || 0})</span>
           </TabsTrigger>
-          <TabsTrigger value="tests" className="flex items-center gap-2 text-xs">
+          <TabsTrigger value="tests" className="flex items-center gap-1.5 text-xs font-mono data-[state=active]:bg-cyan-950/60 data-[state=active]:text-cyan-300 data-[state=active]:border-b-2 data-[state=active]:border-cyan-400">
             <Terminal className="h-3.5 w-3.5" />
             <span>Generated Tests ({review.generated_tests?.length || 0})</span>
           </TabsTrigger>

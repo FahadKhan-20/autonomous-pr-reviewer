@@ -1,11 +1,29 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import { GitPullRequest, Loader2, Play, AlertCircle, RefreshCw, CheckCircle2, ShieldCheck, Sparkles, FileDiff, Terminal, Activity } from "lucide-react";
+import { 
+  GitPullRequest, 
+  Loader2, 
+  Play, 
+  AlertCircle, 
+  RefreshCw, 
+  CheckCircle2, 
+  ShieldCheck, 
+  Sparkles, 
+  FileDiff, 
+  Terminal, 
+  Activity, 
+  Network, 
+  Database, 
+  Download, 
+  Copy, 
+  ExternalLink 
+} from "lucide-react";
 import { AgentTimeline } from "@/components/agent-timeline";
 import { DiffViewer, FindingData } from "@/components/diff-viewer";
 import { MetricsBar } from "@/components/metrics-bar";
 import { TestPanel, GeneratedTestData } from "@/components/test-panel";
+import { RagPipelineGraph } from "@/components/rag-pipeline-graph";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -54,7 +72,6 @@ export default function Home() {
       return;
     }
 
-    // Reset view state
     setIsLoading(true);
     setErrorMessage(null);
     setEvents([]);
@@ -90,11 +107,10 @@ export default function Home() {
       setReviewMeta({ repo: data.repo, prNumber: data.pr_number });
 
       toast({
-        title: "Review initiated",
-        description: `Connected to multi-agent stream for ${data.repo}#${data.pr_number}`,
+        title: "Review pipeline initiated",
+        description: `Connected to LangGraph stream for ${data.repo}#${data.pr_number}`,
       });
 
-      // Connect SSE stream
       connectStream(data.review_id);
     } catch (err: any) {
       console.error("Failed to start review:", err);
@@ -133,7 +149,6 @@ export default function Home() {
           setCostUsd(event.data.estimated_cost_usd || 0);
           setLatencyMs(event.data.total_latency_ms || 0);
 
-          // Fetch full review details to populate complete diff
           fetchFullReview(id);
         } else if (event.event_type === "error") {
           setIsLoading(false);
@@ -164,6 +179,38 @@ export default function Home() {
     }
   };
 
+  const exportReviewReport = () => {
+    const report = {
+      review_id: reviewId,
+      repository: reviewMeta.repo,
+      pr_number: reviewMeta.prNumber,
+      verdict,
+      risk_score: riskScore,
+      summary,
+      findings_count: findings.length,
+      findings,
+      tests_generated_count: generatedTests.length,
+      telemetry: {
+        tokens_in: tokensIn,
+        tokens_out: tokensOut,
+        total_latency_ms: latencyMs,
+        cost_usd: costUsd,
+      },
+    };
+
+    const blob = new Blob([JSON.stringify(report, null, 2)], { type: "application/json" });
+    const u = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = u;
+    a.download = `review_${reviewMeta.repo?.replace("/", "_") || "pr"}_${reviewMeta.prNumber || "report"}.json`;
+    a.click();
+    URL.revokeObjectURL(u);
+    toast({
+      title: "Review report exported",
+      description: `Saved report JSON file.`,
+    });
+  };
+
   useEffect(() => {
     return () => {
       if (sseClientRef.current) {
@@ -174,67 +221,69 @@ export default function Home() {
 
   return (
     <div className="container max-w-7xl px-4 py-6 sm:px-6 space-y-6">
-      {/* Top Banner & PR Input Form */}
-      <Card className="border-border/80 bg-card/60 backdrop-blur-md shadow-lg">
-        <CardHeader className="pb-3">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div>
-              <CardTitle className="text-xl font-bold flex items-center gap-2">
-                <span>Autonomous Code Review</span>
-                <span className="text-xs font-normal font-mono px-2 py-0.5 rounded bg-primary/10 text-primary border border-primary/20">
-                  LangGraph 4-Agent Pipeline
+      {/* Hero Command Bar Card */}
+      <div className="relative overflow-hidden rounded-xl border border-white/[0.08] bg-card/60 p-5 backdrop-blur-md fui-panel shadow-2xl">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-white/[0.06]">
+          <div className="space-y-0.5">
+            <div className="flex items-center gap-2">
+              <span className="h-2 w-2 rounded-full bg-cyan-400 radar-live" />
+              <h1 className="text-base font-bold tracking-tight text-foreground flex items-center gap-2">
+                <span>Autonomous Code Reviewer</span>
+                <span className="font-mono text-[10px] text-cyan-400 px-2 py-0.5 rounded border border-cyan-500/30 bg-cyan-950/40">
+                  RAG ENGINE v1.0
                 </span>
-              </CardTitle>
-              <CardDescription className="mt-1 text-xs">
-                Context Retriever › Security & Bug Auditor › Test Generator › Synthesizer
-              </CardDescription>
+              </h1>
             </div>
-
-            {/* Quick Demo Buttons */}
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="text-[11px] text-muted-foreground">Quick Demos:</span>
-              <button
-                type="button"
-                onClick={() => handleQuickSample("https://github.com/facebook/react/pull/31415")}
-                className="text-[11px] px-2 py-1 rounded border border-border/80 bg-muted/40 hover:bg-muted text-foreground/80 transition-colors"
-              >
-                React PR
-              </button>
-              <button
-                type="button"
-                onClick={() => handleQuickSample("https://github.com/pallets/flask/pull/5000")}
-                className="text-[11px] px-2 py-1 rounded border border-border/80 bg-muted/40 hover:bg-muted text-foreground/80 transition-colors"
-              >
-                Flask PR
-              </button>
-            </div>
+            <p className="text-xs text-muted-foreground">
+              pgvector HNSW Semantic Retrieval › Tree-sitter AST Chunker › LangGraph 4-Agent Swarm
+            </p>
           </div>
-        </CardHeader>
 
-        <CardContent className="space-y-3">
+          {/* Quick Demo PR Chips */}
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="font-mono text-[10px] text-muted-foreground mr-1">DEMOS:</span>
+            <button
+              type="button"
+              onClick={() => handleQuickSample("https://github.com/facebook/react/pull/31415")}
+              className="font-mono text-[11px] px-2.5 py-1 rounded border border-white/[0.08] bg-white/[0.02] hover:border-cyan-500/40 hover:bg-cyan-950/30 text-foreground/80 hover:text-cyan-300 transition-colors"
+            >
+              React #31415
+            </button>
+            <button
+              type="button"
+              onClick={() => handleQuickSample("https://github.com/pallets/flask/pull/5000")}
+              className="font-mono text-[11px] px-2.5 py-1 rounded border border-white/[0.08] bg-white/[0.02] hover:border-cyan-500/40 hover:bg-cyan-950/30 text-foreground/80 hover:text-cyan-300 transition-colors"
+            >
+              Flask #5000
+            </button>
+          </div>
+        </div>
+
+        {/* Input Command Line */}
+        <div className="mt-4 space-y-3">
           <form
             onSubmit={(e) => {
               e.preventDefault();
               startReview();
             }}
-            className="flex flex-col sm:flex-row gap-2"
+            className="flex flex-col sm:flex-row gap-2.5"
           >
             <div className="relative flex-1">
-              <GitPullRequest className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+              <GitPullRequest className="absolute left-3.5 top-3 h-4 w-4 text-cyan-400" />
               <input
                 type="text"
                 value={url}
                 onChange={(e) => setUrl(e.target.value)}
                 placeholder="https://github.com/owner/repository/pull/123"
                 disabled={isLoading}
-                className="w-full h-10 rounded-md border border-input bg-background/80 pl-9 pr-4 text-sm font-mono text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50"
+                className="w-full h-10 rounded-lg border border-white/[0.1] bg-black/50 pl-10 pr-4 text-xs font-mono text-cyan-100 placeholder:text-muted-foreground focus:outline-none focus:border-cyan-400/80 focus:ring-1 focus:ring-cyan-400 disabled:opacity-50 transition-colors"
               />
             </div>
 
             <Button
               type="submit"
               disabled={isLoading || !url.trim()}
-              className="h-10 px-6 font-semibold flex items-center gap-2 shadow"
+              className="h-10 px-6 font-mono text-xs font-semibold flex items-center gap-2 bg-cyan-600 hover:bg-cyan-500 text-white shadow-lg glow-cyan border border-cyan-400/30"
             >
               {isLoading ? (
                 <>
@@ -243,43 +292,53 @@ export default function Home() {
                 </>
               ) : (
                 <>
-                  <Play className="h-4 w-4" />
-                  <span>Start Review</span>
+                  <Play className="h-3.5 w-3.5" />
+                  <span>Execute Review</span>
                 </>
               )}
             </Button>
           </form>
 
-          {/* Options */}
-          <div className="flex items-center justify-between text-xs text-muted-foreground pt-1">
+          {/* Options & Metadata */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between text-xs text-muted-foreground gap-2 pt-1">
             <label className="flex items-center gap-2 cursor-pointer select-none">
               <input
                 type="checkbox"
                 checked={postComment}
                 onChange={(e) => setPostComment(e.target.checked)}
-                className="rounded border-border text-primary focus:ring-primary"
+                className="rounded border-white/20 bg-black text-cyan-500 focus:ring-cyan-500"
               />
-              <span>Post review comments back to GitHub PR (requires GITHUB_TOKEN)</span>
+              <span className="text-[11px]">Post review comments back to GitHub PR (requires GITHUB_TOKEN)</span>
             </label>
 
             {reviewId && (
-              <span className="font-mono text-[11px]">
-                Review ID: <span className="text-primary">{reviewId.slice(0, 8)}...</span>
-              </span>
+              <div className="flex items-center gap-2">
+                <span className="font-mono text-[11px]">
+                  SESSION: <span className="text-cyan-400">{reviewId.slice(0, 8)}...</span>
+                </span>
+                <button
+                  type="button"
+                  onClick={exportReviewReport}
+                  className="inline-flex items-center gap-1 font-mono text-[10px] text-muted-foreground hover:text-cyan-300 transition-colors px-2 py-0.5 rounded border border-white/[0.08] bg-black/40"
+                >
+                  <Download className="h-3 w-3" />
+                  <span>Export Report</span>
+                </button>
+              </div>
             )}
           </div>
 
           {/* Error Banner */}
           {errorMessage && (
-            <div className="flex items-center gap-2 p-3 rounded-md bg-destructive/10 border border-destructive/30 text-destructive text-xs">
-              <AlertCircle className="h-4 w-4 shrink-0" />
+            <div className="flex items-center gap-2 p-3 rounded-lg bg-rose-950/30 border border-rose-500/30 text-rose-300 text-xs font-mono">
+              <AlertCircle className="h-4 w-4 shrink-0 text-rose-400" />
               <span>{errorMessage}</span>
             </div>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
-      {/* Observability Metrics Bar */}
+      {/* Telemetry Metrics Bar */}
       <MetricsBar
         tokensIn={tokensIn}
         tokensOut={tokensOut}
@@ -289,57 +348,57 @@ export default function Home() {
         verdict={verdict}
       />
 
-      {/* Executive Summary Card (Visible when synthesized) */}
+      {/* Executive Summary Verdict Card */}
       {summary && (
-        <Card className="border-border/80 bg-card/60 backdrop-blur-sm">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-semibold flex items-center justify-between">
-              <span className="flex items-center gap-2 text-foreground">
-                <Sparkles className="h-4 w-4 text-primary" />
-                Synthesized Review Verdict
-              </span>
-              <span className="text-xs font-mono text-muted-foreground uppercase">{verdict}</span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <p className="text-sm text-foreground/90 leading-relaxed font-sans">{summary}</p>
-          </CardContent>
-        </Card>
+        <div className="rounded-xl border border-white/[0.08] bg-card/60 p-4 backdrop-blur-md fui-panel space-y-2">
+          <div className="flex items-center justify-between pb-2 border-b border-white/[0.06]">
+            <div className="flex items-center gap-2">
+              <Sparkles className="h-4 w-4 text-cyan-400" />
+              <h3 className="text-sm font-semibold text-foreground">Executive PR Synthesis</h3>
+            </div>
+            <span className="font-mono text-xs text-cyan-400 uppercase">{verdict}</span>
+          </div>
+          <p className="text-xs text-foreground/90 font-sans leading-relaxed">{summary}</p>
+        </div>
       )}
 
-      {/* Main Review Panels: Timeline & Tabs */}
+      {/* Main Orchestration & Architecture Workspace */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left Column: Multi-Agent Timeline (1 col) */}
+        {/* Left Column: Multi-Agent Swarm Timeline */}
         <div className="lg:col-span-1">
-          <Card className="border-border/80 bg-card/60 backdrop-blur-sm">
-            <CardContent className="p-4">
-              <AgentTimeline
-                events={events}
-                currentAgent={events.length > 0 ? events[events.length - 1].agent : undefined}
-                isCompleted={isCompleted}
-              />
-            </CardContent>
-          </Card>
+          <div className="rounded-xl border border-white/[0.08] bg-card/60 p-4 backdrop-blur-md fui-panel">
+            <AgentTimeline
+              events={events}
+              currentAgent={events.length > 0 ? events[events.length - 1].agent : undefined}
+              isCompleted={isCompleted}
+            />
+          </div>
         </div>
 
-        {/* Right Column: Diff Viewer & Test Panel Tabs (2 cols) */}
+        {/* Right Column: Visual Tabs (RAG Architecture / Diff / Tests) */}
         <div className="lg:col-span-2">
           <Tabs defaultValue="diff" className="w-full">
-            <TabsList className="w-full justify-start border-b border-border/60 bg-card/40 rounded-t-lg rounded-b-none p-1">
-              <TabsTrigger value="diff" className="flex items-center gap-2 text-xs">
+            <TabsList className="w-full justify-start border-b border-white/[0.08] bg-card/40 rounded-t-xl rounded-b-none p-1 gap-1">
+              <TabsTrigger value="diff" className="flex items-center gap-1.5 text-xs font-mono data-[state=active]:bg-cyan-950/60 data-[state=active]:text-cyan-300 data-[state=active]:border-b-2 data-[state=active]:border-cyan-400">
                 <FileDiff className="h-3.5 w-3.5" />
                 <span>Annotated Diff</span>
                 {findings.length > 0 && (
-                  <Badge variant="destructive" className="ml-1 h-4 px-1.5 text-[10px]">
+                  <Badge variant="destructive" className="ml-1 h-4 px-1.5 text-[9px] font-mono">
                     {findings.length}
                   </Badge>
                 )}
               </TabsTrigger>
-              <TabsTrigger value="tests" className="flex items-center gap-2 text-xs">
+
+              <TabsTrigger value="rag" className="flex items-center gap-1.5 text-xs font-mono data-[state=active]:bg-cyan-950/60 data-[state=active]:text-cyan-300 data-[state=active]:border-b-2 data-[state=active]:border-cyan-400">
+                <Network className="h-3.5 w-3.5 text-cyan-400" />
+                <span>RAG Architecture & Vector Graph</span>
+              </TabsTrigger>
+
+              <TabsTrigger value="tests" className="flex items-center gap-1.5 text-xs font-mono data-[state=active]:bg-cyan-950/60 data-[state=active]:text-cyan-300 data-[state=active]:border-b-2 data-[state=active]:border-cyan-400">
                 <Terminal className="h-3.5 w-3.5" />
                 <span>Generated Tests</span>
                 {generatedTests.length > 0 && (
-                  <Badge variant="outline" className="ml-1 h-4 px-1.5 text-[10px]">
+                  <Badge variant="outline" className="ml-1 h-4 px-1.5 text-[9px] font-mono border-indigo-500/30 text-indigo-300">
                     {generatedTests.length}
                   </Badge>
                 )}
@@ -348,6 +407,10 @@ export default function Home() {
 
             <TabsContent value="diff" className="mt-4">
               <DiffViewer diff={diff} findings={findings} />
+            </TabsContent>
+
+            <TabsContent value="rag" className="mt-4">
+              <RagPipelineGraph />
             </TabsContent>
 
             <TabsContent value="tests" className="mt-4">
