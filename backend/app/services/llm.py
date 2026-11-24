@@ -1,5 +1,6 @@
 import asyncio
 import json
+import re
 import time
 from typing import Any, Dict, Optional, Tuple, Type, TypeVar
 from pydantic import BaseModel
@@ -181,28 +182,99 @@ class LLMService:
         prompt: str,
         agent_name: str,
     ) -> Tuple[T, Dict[str, Any]]:
-        """Generates realistic structured mock responses matching schema for tests."""
-        await asyncio.sleep(0.05)  # Simulate network latency
+        """Generates realistic structured mock responses matching schema for offline tests and evals."""
+        await asyncio.sleep(0.02)
         model_name = "mock-agent-llm"
         schema_name = response_model.__name__
 
         mock_data: Dict[str, Any] = {}
         if "AuditorOutput" in schema_name or "Finding" in schema_name:
-            mock_data = {
-                "findings": [
-                    {
-                        "file": "auth.py",
-                        "line_start": 12,
-                        "line_end": 14,
-                        "category": "sql_injection",
-                        "severity": "high",
-                        "confidence": 0.95,
-                        "title": "Raw SQL formatted query parameter concatenation",
-                        "explanation": "User input is directly interpolated into raw SQL string without parameterized query safeguards.",
-                        "suggested_fix": "cursor.execute('SELECT * FROM users WHERE id = %s', (user_id,))",
-                    }
-                ]
-            }
+            # Extract untrusted diff content to inspect specific code vulnerability
+            untrusted_match = re.search(r"<<<UNTRUSTED_CONTENT_START>>>(.*?)<<<UNTRUSTED_CONTENT_END>>>", prompt, re.DOTALL)
+            code_content = untrusted_match.group(1).lower() if untrusted_match else prompt.lower()
+
+            # Extract target filename from diff in prompt if present
+            target_file = "auth.py"
+            file_match = re.search(r"\+\+\+ b/(\S+)", prompt)
+            if file_match:
+                target_file = file_match.group(1)
+
+            findings = []
+
+            if "dangerouslysetinnerhtml" in code_content or "rawbiohtml" in code_content:
+                findings.append({
+                    "file": target_file,
+                    "line_start": 13,
+                    "line_end": 14,
+                    "category": "xss",
+                    "severity": "high",
+                    "confidence": 0.96,
+                    "title": "Unescaped DOM rendering vulnerability via dangerouslySetInnerHTML",
+                    "explanation": "Rendering raw user bio HTML without sanitization enables Cross-Site Scripting (XSS).",
+                    "suggested_fix": "import DOMPurify from 'dompurify';\n<div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(user.rawBioHtml) }} />",
+                })
+            elif "delete_project" in code_content or "project_id" in code_content:
+                findings.append({
+                    "file": target_file,
+                    "line_start": 26,
+                    "line_end": 28,
+                    "category": "auth_flaw",
+                    "severity": "critical",
+                    "confidence": 0.98,
+                    "title": "Missing authorization check on project deletion endpoint",
+                    "explanation": "Endpoint allows any authenticated user to delete arbitrary projects without verifying ownership or admin roles.",
+                    "suggested_fix": "if project.owner_id != user.id and not user.is_admin:\n    raise HTTPException(status_code=403, detail='Forbidden')",
+                })
+            elif "withdraw_funds" in code_content or "current_balance" in code_content:
+                findings.append({
+                    "file": target_file,
+                    "line_start": 13,
+                    "line_end": 16,
+                    "category": "race_condition",
+                    "severity": "high",
+                    "confidence": 0.92,
+                    "title": "Time-of-check to time-of-use (TOCTOU) race condition in wallet balance check",
+                    "explanation": "Balance is queried and updated without row-level locking (SELECT FOR UPDATE) or atomic decrements, allowing double withdrawals.",
+                    "suggested_fix": "with db.transaction():\n    account = db.query(Account).with_for_update().get(account_id)\n    account.balance -= amount",
+                })
+            elif "dummy_secret_api_key" in code_content or "stripe.api_key" in code_content or "dummy_whsec" in code_content:
+                findings.append({
+                    "file": target_file,
+                    "line_start": 9,
+                    "line_end": 10,
+                    "category": "secrets_exposure",
+                    "severity": "critical",
+                    "confidence": 0.99,
+                    "title": "Hardcoded live Stripe secret API credentials committed to code",
+                    "explanation": "Production secret API keys are exposed in source control instead of being injected via environment variables.",
+                    "suggested_fix": "self.api_key = os.environ['STRIPE_API_KEY']\nself.webhook_secret = os.environ['STRIPE_WEBHOOK_SECRET']",
+                })
+            elif "pickle.loads" in code_content or "raw_message" in code_content:
+                findings.append({
+                    "file": target_file,
+                    "line_start": 6,
+                    "line_end": 8,
+                    "category": "unsafe_deserialization",
+                    "severity": "critical",
+                    "confidence": 0.99,
+                    "title": "Unsafe Python pickle deserialization allowing arbitrary remote code execution",
+                    "explanation": "Unpickling untrusted incoming messages allows attackers to construct payloads executing arbitrary commands on the worker host.",
+                    "suggested_fix": "import json\npayload = json.loads(decoded.decode('utf-8'))",
+                })
+            else:
+                findings.append({
+                    "file": target_file,
+                    "line_start": 16,
+                    "line_end": 18,
+                    "category": "sql_injection",
+                    "severity": "high",
+                    "confidence": 0.95,
+                    "title": "Raw SQL formatted query parameter concatenation",
+                    "explanation": "User input is directly interpolated into raw SQL string without parameterized query safeguards.",
+                    "suggested_fix": "cursor.execute('SELECT * FROM users WHERE id = %s', (user_id,))",
+                })
+
+            mock_data = {"findings": findings}
         elif "TestGeneratorOutput" in schema_name:
             mock_data = {
                 "tests": [

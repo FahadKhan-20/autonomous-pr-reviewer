@@ -1,0 +1,11 @@
+--- a/worker/tasks.py
++++ b/worker/tasks.py
+@@ -1,6 +1,11 @@
+ import pickle
+ import base64
+ 
+ def process_incoming_job_payload(raw_message: str):
++    # Unsafe Deserialization: arbitrary Python code execution via unverified pickle payload
++    decoded = base64.b64decode(raw_message)
++    payload_object = pickle.loads(decoded)
++    return payload_object.run()

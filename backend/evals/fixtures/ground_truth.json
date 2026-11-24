@@ -1,0 +1,32 @@
+{
+  "01_sql_injection.diff": {
+    "expected_category": "sql_injection",
+    "min_severity": "high",
+    "description": "SQL injection vulnerability via string concatenation"
+  },
+  "02_xss_dom.diff": {
+    "expected_category": "xss",
+    "min_severity": "medium",
+    "description": "Cross-Site Scripting via dangerouslySetInnerHTML"
+  },
+  "03_missing_auth.diff": {
+    "expected_category": "auth_flaw",
+    "min_severity": "high",
+    "description": "Missing authorization check on project deletion"
+  },
+  "04_race_condition.diff": {
+    "expected_category": "race_condition",
+    "min_severity": "medium",
+    "description": "Time-of-check to time-of-use race condition in wallet balance withdrawal"
+  },
+  "05_secrets_exposure.diff": {
+    "expected_category": "secrets_exposure",
+    "min_severity": "high",
+    "description": "Hardcoded live Stripe production secret keys"
+  },
+  "06_unsafe_deserialization.diff": {
+    "expected_category": "unsafe_deserialization",
+    "min_severity": "critical",
+    "description": "Arbitrary code execution via untrusted pickle deserialization"
+  }
+}

@@ -165,7 +165,7 @@ CRITICAL INSTRUCTIONS:
         for raw_finding in auditor_output.findings:
             anchored = anchor_and_validate_finding(raw_finding, valid_lines_by_file)
             if anchored:
-                finding_dict = anchored.model_dump()
+                finding_dict = anchored.model_dump(mode="json")
                 validated_findings.append(finding_dict)
                 await emit_event(
                     state,

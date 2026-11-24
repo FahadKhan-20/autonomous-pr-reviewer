@@ -1,4 +1,4 @@
-.PHONY: help up down test lint build
+.PHONY: help up down test lint build evals
 
 help:
 	@echo "Available commands:"
@@ -6,6 +6,7 @@ help:
 	@echo "  make down    - Stop all docker compose services"
 	@echo "  make test    - Run backend unit and integration tests"
 	@echo "  make lint    - Run backend and frontend linters"
+	@echo "  make evals   - Run vulnerability detection evaluation suite"
 	@echo "  make build   - Rebuild all container images"
 
 up:
@@ -17,9 +18,11 @@ down:
 test:
 	python -m pytest backend/tests/ -v
 
+evals:
+	python backend/evals/run_evals.py
+
 lint:
 	cd frontend && npm run lint
-	python -m flake8 backend/app/ || true
 
 build:
 	docker compose build

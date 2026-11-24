@@ -1,0 +1,13 @@
+--- a/api/v1/projects.py
++++ b/api/v1/projects.py
+@@ -22,6 +22,12 @@ from api.auth import get_current_user
+ 
+ @router.delete("/projects/{project_id}")
+ def delete_project(project_id: str, user = Depends(get_current_user)):
++    # Broken Access Control: missing authorization check verifying user owns or has admin role on project
++    project = db.query(Project).filter(Project.id == project_id).first()
++    if not project:
++        raise HTTPException(status_code=404)
++    db.delete(project)
++    db.commit()
+     return {"status": "deleted"}

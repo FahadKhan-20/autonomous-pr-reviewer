@@ -1,0 +1,12 @@
+--- a/banking/wallet.py
++++ b/banking/wallet.py
+@@ -10,6 +10,13 @@ class WalletManager:
+     def withdraw_funds(self, account_id: str, amount: float):
++        # Race Condition (TOCTOU): checks balance then deducts without database row lock or transaction isolation
++        current_balance = self.get_balance(account_id)
++        if current_balance >= amount:
++            time.sleep(0.01) # Simulated network delay exposing race window
++            new_balance = current_balance - amount
++            self.update_balance(account_id, new_balance)
++            return True
++        return False

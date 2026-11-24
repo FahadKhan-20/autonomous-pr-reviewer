@@ -98,7 +98,7 @@ class GitHubService:
     async def get_latest_open_pr(self, owner: str, repo: str) -> Dict[str, Any]:
         """Fetches the latest open pull request for a repository."""
         url = f"{self.base_url}/repos/{owner}/{repo}/pulls?state=open&sort=updated&direction=desc&per_page=1"
-        async with httpx.AsyncClient(timeout=20.0) as client:
+        async with httpx.AsyncClient(timeout=20.0, follow_redirects=True) as client:
             resp = await client.get(url, headers=self._get_headers())
             self._check_response_status(resp, f"Listing open PRs for {owner}/{repo}")
             data = resp.json()
@@ -109,7 +109,7 @@ class GitHubService:
     async def list_open_prs(self, owner: str, repo: str, limit: int = 10) -> List[Dict[str, Any]]:
         """Lists recent open pull requests for a repository."""
         url = f"{self.base_url}/repos/{owner}/{repo}/pulls?state=open&sort=updated&direction=desc&per_page={limit}"
-        async with httpx.AsyncClient(timeout=20.0) as client:
+        async with httpx.AsyncClient(timeout=20.0, follow_redirects=True) as client:
             resp = await client.get(url, headers=self._get_headers())
             self._check_response_status(resp, f"Listing PRs for {owner}/{repo}")
             return resp.json()
@@ -117,7 +117,7 @@ class GitHubService:
     async def get_pr_metadata(self, owner: str, repo: str, pr_number: int) -> Dict[str, Any]:
         """Retrieves metadata (title, body, base/head SHA, author) for a PR."""
         url = f"{self.base_url}/repos/{owner}/{repo}/pulls/{pr_number}"
-        async with httpx.AsyncClient(timeout=20.0) as client:
+        async with httpx.AsyncClient(timeout=20.0, follow_redirects=True) as client:
             resp = await client.get(url, headers=self._get_headers())
             self._check_response_status(resp, f"Fetching PR metadata #{pr_number}")
             return resp.json()
@@ -126,7 +126,7 @@ class GitHubService:
         """Retrieves the unified diff of a pull request."""
         url = f"{self.base_url}/repos/{owner}/{repo}/pulls/{pr_number}"
         headers = self._get_headers(accept="application/vnd.github.v3.diff")
-        async with httpx.AsyncClient(timeout=30.0) as client:
+        async with httpx.AsyncClient(timeout=30.0, follow_redirects=True) as client:
             resp = await client.get(url, headers=headers)
             self._check_response_status(resp, f"Fetching unified diff for PR #{pr_number}")
             diff_text = resp.text
@@ -145,13 +145,19 @@ class GitHubService:
     async def get_pr_files(self, owner: str, repo: str, pr_number: int) -> List[Dict[str, Any]]:
         """Retrieves list of changed files with additions/deletions, filtering out binaries & lockfiles."""
         url = f"{self.base_url}/repos/{owner}/{repo}/pulls/{pr_number}/files?per_page=100"
-        async with httpx.AsyncClient(timeout=20.0) as client:
+        async with httpx.AsyncClient(timeout=20.0, follow_redirects=True) as client:
             resp = await client.get(url, headers=self._get_headers())
             self._check_response_status(resp, f"Fetching files for PR #{pr_number}")
             raw_files = resp.json()
 
+            if not isinstance(raw_files, list):
+                logger.warning(f"Unexpected response format for PR files: {raw_files}")
+                return []
+
             filtered: List[Dict[str, Any]] = []
             for file_info in raw_files:
+                if not isinstance(file_info, dict):
+                    continue
                 filename = file_info.get("filename", "")
                 lower = filename.lower()
                 basename = lower.split("/")[-1]
@@ -175,7 +181,7 @@ class GitHubService:
         """Fetches raw text content of a file at a specific commit ref."""
         url = f"{self.base_url}/repos/{owner}/{repo}/contents/{path}?ref={ref}"
         headers = self._get_headers(accept="application/vnd.github.v3.raw")
-        async with httpx.AsyncClient(timeout=20.0) as client:
+        async with httpx.AsyncClient(timeout=20.0, follow_redirects=True) as client:
             resp = await client.get(url, headers=headers)
             if resp.status_code == 200:
                 return resp.text

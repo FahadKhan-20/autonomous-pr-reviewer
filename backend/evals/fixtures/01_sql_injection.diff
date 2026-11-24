@@ -1,0 +1,11 @@
+--- a/app/routes/user.py
++++ b/app/routes/user.py
+@@ -14,6 +14,13 @@ from app.db import get_db
+ 
+ @router.get("/users/search")
+ def search_users(query: str, db = Depends(get_db)):
++    # Raw unescaped string formatting creates direct SQL injection vulnerability
++    sql = f"SELECT id, username, email FROM users WHERE username = '{query}'"
++    cursor = db.cursor()
++    cursor.execute(sql)
++    return cursor.fetchall()
